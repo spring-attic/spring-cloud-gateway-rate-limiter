@@ -1,0 +1,14 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: github
+          uri: https://google.com
+          predicates:
+            - Path=/google
+          filters:
+            - name: RequestRateLimiter
+              args:
+                rate-limiter: "#{@hazelcastRateLimiter}"
+                key-resolver: "#{@headerKeyResolver}"
+                hazelcast-rate-limiter.limit: 3

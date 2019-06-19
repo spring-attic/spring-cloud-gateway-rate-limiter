@@ -1,0 +1,10 @@
+---
+applications:
+  - name: peer
+    path: build/libs/scg-rate-limiter.jar
+    instances: 2
+    routes:
+      - route: peer.apps.internal
+      - route: peer.((cf-apps-domain))
+    buildpacks:
+      - java_buildpack_offline
