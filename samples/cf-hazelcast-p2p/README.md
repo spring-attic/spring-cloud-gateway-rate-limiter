@@ -5,7 +5,8 @@ This is a PoC of using Hazelcast peer-to-peer cluster to implement Spring Cloud 
 # Build and deploy
 
 ```
-$ ./gradlew assemble
+$ cd samples/cf-hazelcast-p2p
+$ ../../gradlew assemble
 $ cf push --var cf-apps-domain=<your cf env domain>
 $ ./configure-network.sh
 ```

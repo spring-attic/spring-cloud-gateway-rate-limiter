@@ -3,4 +3,10 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
-rootProject.name = 'scg-rate-limiter'
+rootProject.name = 'spring-cloud-gateway-rate-limiter'
+
+include(':rate-limiter-hazelcast')
+
+include(":cf-hazelcast-p2p")
+project(":cf-hazelcast-p2p").projectDir = new File('./samples/cf-hazelcast-p2p')
+

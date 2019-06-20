@@ -5,8 +5,9 @@ spring:
         - id: github
           uri: https://google.com
           predicates:
-            - Path=/google
+            - Path=/google/**
           filters:
+            - StripPrefix=1
             - name: RequestRateLimiter
               args:
                 rate-limiter: "#{@hazelcastRateLimiter}"
