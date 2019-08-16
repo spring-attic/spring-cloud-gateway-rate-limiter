@@ -16,6 +16,7 @@ import com.hazelcast.transaction.TransactionOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import org.springframework.cloud.gateway.filter.ratelimit.AbstractRateLimiter;
 import org.springframework.validation.Validator;
@@ -39,16 +40,11 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 	private final Logger logger = LoggerFactory.getLogger(HazelcastRateLimiter.class);
 	private final Mono<HazelcastInstance> hazelcastCluster;
 
-	public HazelcastRateLimiter(Validator defaultValidator, String internalHost, int instances) {
+	public HazelcastRateLimiter(Validator defaultValidator, String groupName, List<String> members) {
 		super(HazelcastRateLimiter.RateLimiterConfig.class, "hazelcast-rate-limiter", defaultValidator);
-		List<String> members = IntStream.range(0, instances)
-		                                .mapToObj(id -> id + "." + internalHost)
-		                                .collect(Collectors.toList());
-
-		this.hazelcastCluster = Mono.defer(() -> {
-            HazelcastInstance hazelcastInstance = initCluster(internalHost, members);
-            return Mono.just(hazelcastInstance);
-		}).cache();
+		this.hazelcastCluster = Mono.defer(() -> Mono.just(initCluster(groupName, members)))
+		                            .publishOn(Schedulers.elastic())
+		                            .cache();
 	}
 
     @Override
