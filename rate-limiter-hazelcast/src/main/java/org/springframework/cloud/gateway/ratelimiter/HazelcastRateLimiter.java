@@ -10,6 +10,9 @@ import com.hazelcast.config.JoinConfig;
 import com.hazelcast.config.TcpIpConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.TransactionalMap;
+import com.hazelcast.transaction.TransactionContext;
+import com.hazelcast.transaction.TransactionOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
@@ -52,19 +55,29 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 	public Mono<Response> isAllowed(String routeId, String id) {
 		final Response notAllowed = new Response(false, Collections.emptyMap());
 		return this.hazelcastCluster
-				.map(hazelcastInstance -> hazelcastInstance.<String, Integer>getMap("rate-limits"))
-				.map(map -> {
-					Integer noRequests = map.getOrDefault(id, 0) + 1;
-					HazelcastRateLimiter.RateLimiterConfig config = getConfig().getOrDefault(routeId, new HazelcastRateLimiter.RateLimiterConfig());
+				.map(instance -> {
+					final TransactionContext context = instance.newTransactionContext();
+					final HazelcastRateLimiter.RateLimiterConfig config = getConfig().getOrDefault(routeId, new HazelcastRateLimiter.RateLimiterConfig());
+
+					context.beginTransaction();
+					final TransactionalMap<String, Integer> map = context.getMap("rates-limits");
+					final Integer cachedValue = map.getForUpdate(id);
+					final Integer noRequests = cachedValue == null ? 1 : cachedValue + 1;
 
 					logger.info("Current limit is {}, total requests to date {}", config.getLimit(), noRequests);
 
-					if (noRequests >= config.getLimit()) {
+					boolean limitExceeded = noRequests >= config.getLimit();
+					if (!limitExceeded) {
+						map.put(id, noRequests);
+					}
+
+					context.commitTransaction();
+
+					if (limitExceeded) {
 						logger.info("Exceeded number of allowed requests");
 						return notAllowed;
 					}
 
-					map.put(id, noRequests);
 					final int remainingRequests = config.getLimit() - noRequests;
 
 					return new Response(true, Collections.singletonMap("X-Remaining-Limit", String.valueOf(remainingRequests)));
