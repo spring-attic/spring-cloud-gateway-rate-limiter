@@ -2,8 +2,7 @@ spring:
   cloud:
     gateway:
       routes:
-        - id: github
-          uri: https://google.com
+        - uri: https://google.com
           predicates:
             - Path=/google/**
           filters:
