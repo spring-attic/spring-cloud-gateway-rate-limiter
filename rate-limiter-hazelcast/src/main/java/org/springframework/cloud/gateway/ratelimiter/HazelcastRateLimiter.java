@@ -37,6 +37,8 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 
 	}
 
+	private RateLimiterConfig defaultConfig = new RateLimiterConfig();
+
 	private final Logger logger = LoggerFactory.getLogger(HazelcastRateLimiter.class);
 	private final Mono<HazelcastInstance> hazelcastCluster;
 
@@ -47,13 +49,18 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 		                            .cache();
 	}
 
-    @Override
+	HazelcastRateLimiter(Validator defaultValidator, String groupName, List<String> members, HazelcastRateLimiter.RateLimiterConfig config) {
+		this(defaultValidator, groupName, members);
+		this.defaultConfig = config;
+	}
+
+	@Override
 	public Mono<Response> isAllowed(String routeId, String id) {
 		final Response notAllowed = new Response(false, Collections.emptyMap());
 		return this.hazelcastCluster
 				.map(instance -> {
 					final TransactionContext context = instance.newTransactionContext();
-					final HazelcastRateLimiter.RateLimiterConfig config = getConfig().getOrDefault(routeId, new HazelcastRateLimiter.RateLimiterConfig());
+					final HazelcastRateLimiter.RateLimiterConfig config = getConfig().getOrDefault(routeId, defaultConfig);
 
 					context.beginTransaction();
 					final TransactionalMap<String, Integer> map = context.getMap("rates-limits");
@@ -62,7 +69,7 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 
 					logger.info("Current limit is {}, total requests to date {}", config.getLimit(), noRequests);
 
-					boolean limitExceeded = noRequests >= config.getLimit();
+					boolean limitExceeded = noRequests > config.getLimit();
 					if (!limitExceeded) {
 						map.put(id, noRequests);
 					}
@@ -80,18 +87,18 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 				});
 	}
 
-    private HazelcastInstance initCluster(String groupName, List<String> members) {
-	    String instanceIndex = System.getenv("CF_INSTANCE_INDEX");
-	    logger.info("Starting new cluster for group {} on instance {}", groupName, instanceIndex);
+	private HazelcastInstance initCluster(String groupName, List<String> members) {
+		String instanceIndex = System.getenv("CF_INSTANCE_INDEX");
+		logger.info("Starting new cluster for group {} on instance {}", groupName, instanceIndex);
 
-        Config cfg = new Config();
-        cfg.getGroupConfig().setName(groupName);
+		Config cfg = new Config();
+		cfg.getGroupConfig().setName(groupName);
 
-        JoinConfig joinConfig = cfg.getNetworkConfig().getJoin();
-        joinConfig.getMulticastConfig().setEnabled(false);
-        TcpIpConfig tcpIpConfig = joinConfig.getTcpIpConfig().setEnabled(true);
-        members.forEach(tcpIpConfig::addMember);
+		JoinConfig joinConfig = cfg.getNetworkConfig().getJoin();
+		joinConfig.getMulticastConfig().setEnabled(false);
+		TcpIpConfig tcpIpConfig = joinConfig.getTcpIpConfig().setEnabled(true);
+		members.forEach(tcpIpConfig::addMember);
 
-        return Hazelcast.newHazelcastInstance(cfg);
-    }
+		return Hazelcast.newHazelcastInstance(cfg);
+	}
 }

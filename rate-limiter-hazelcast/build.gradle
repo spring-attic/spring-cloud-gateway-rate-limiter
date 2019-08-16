@@ -17,6 +17,10 @@ ext {
     set('springBootVersion', '2.1.5.RELEASE')
 }
 
+test {
+    useJUnitPlatform()
+}
+
 dependencyManagement {
     imports {
         mavenBom "org.springframework.boot:spring-boot-starter-parent:${springBootVersion}"
@@ -28,4 +32,5 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
     implementation 'com.hazelcast:hazelcast:3.12'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api'
 }
