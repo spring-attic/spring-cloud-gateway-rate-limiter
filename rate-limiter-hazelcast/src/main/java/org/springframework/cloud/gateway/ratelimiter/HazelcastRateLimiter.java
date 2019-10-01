@@ -91,8 +91,7 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 	}
 
 	private HazelcastInstance initCluster(String groupName, List<MemberInfo> members) {
-		String instanceIndex = System.getenv("CF_INSTANCE_INDEX");
-		logger.info("Starting new cluster for group {} on instance {}", groupName, instanceIndex);
+		logger.info("Starting new cluster for group {}", groupName);
 
 		Config cfg = new Config();
 		cfg.getGroupConfig().setName(groupName);
