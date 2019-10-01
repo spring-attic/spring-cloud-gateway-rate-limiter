@@ -32,7 +32,6 @@ class HazelcastRateLimiterTest {
 	}
 
 	private HazelcastRateLimiter rateLimiter;
-	private String apiKey;
 
 	@BeforeAll
 	void setUp() {
@@ -40,12 +39,13 @@ class HazelcastRateLimiterTest {
 		config.setLimit(1);
 
 		rateLimiter = new HazelcastRateLimiter(new NoOpValidator(), "test-group", Collections.singletonList("localhost"), config);
-		apiKey = UUID.randomUUID().toString();
 	}
 
 	@Test
 	@DisplayName("should allow request if limit for a key is not reached")
 	void shouldAllowRequestBeforeLimit() {
+		final String apiKey = UUID.randomUUID().toString();
+
 		RateLimiter.Response block = rateLimiter.isAllowed(UUID.randomUUID().toString(), apiKey).block();
 		assertThat(block.isAllowed()).isTrue();
 	}
@@ -53,7 +53,8 @@ class HazelcastRateLimiterTest {
 	@Test
 	@DisplayName("should reject request if limit for a key is exceeded")
 	void shouldRejectRequestAfterLimit() {
-		rateLimiter.isAllowed("foo", "bar").block();
+		final String apiKey = UUID.randomUUID().toString();
+		rateLimiter.isAllowed("foo", apiKey).block();
 
 		RateLimiter.Response block = rateLimiter.isAllowed(UUID.randomUUID().toString(), apiKey).block();
 		assertThat(block.isAllowed()).isFalse();
