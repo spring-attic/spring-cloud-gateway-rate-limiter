@@ -4,10 +4,10 @@ import java.util.Collections;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import reactor.core.publisher.Mono;
 
 import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter;
 import org.springframework.validation.Errors;
@@ -38,7 +38,7 @@ class HazelcastRateLimiterTest {
 		HazelcastRateLimiter.RateLimiterConfig config = new HazelcastRateLimiter.RateLimiterConfig();
 		config.setLimit(1);
 
-		rateLimiter = new HazelcastRateLimiter(new NoOpValidator(), "test-group", Collections.singletonList("localhost"), config);
+		rateLimiter = new HazelcastRateLimiter(new NoOpValidator(), "test-group", Mono.just(Collections.singletonList(new MemberInfo("localhost", 5701))), config);
 	}
 
 	@Test

@@ -2,8 +2,6 @@ package org.springframework.cloud.gateway.ratelimiter;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import com.hazelcast.config.Config;
 import com.hazelcast.config.JoinConfig;
@@ -12,10 +10,10 @@ import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.TransactionalMap;
 import com.hazelcast.transaction.TransactionContext;
-import com.hazelcast.transaction.TransactionOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.ReplayProcessor;
 import reactor.core.scheduler.Schedulers;
 
 import org.springframework.cloud.gateway.filter.ratelimit.AbstractRateLimiter;
@@ -42,14 +40,19 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 	private final Logger logger = LoggerFactory.getLogger(HazelcastRateLimiter.class);
 	private final Mono<HazelcastInstance> hazelcastCluster;
 
-	public HazelcastRateLimiter(Validator defaultValidator, String groupName, List<String> members) {
+	public HazelcastRateLimiter(Validator defaultValidator, String groupName, Mono<List<MemberInfo>> membersSupplier) {
 		super(HazelcastRateLimiter.RateLimiterConfig.class, "hazelcast-rate-limiter", defaultValidator);
-		this.hazelcastCluster = Mono.defer(() -> Mono.just(initCluster(groupName, members)))
-		                            .publishOn(Schedulers.elastic())
-		                            .cache();
+
+		ReplayProcessor<HazelcastInstance> processor = ReplayProcessor.create();
+		membersSupplier.publishOn(Schedulers.elastic())
+		       .map(members -> initCluster(groupName, members))
+		       .doOnNext(processor::onNext)
+		       .subscribe();
+
+		this.hazelcastCluster = processor.next();
 	}
 
-	HazelcastRateLimiter(Validator defaultValidator, String groupName, List<String> members, HazelcastRateLimiter.RateLimiterConfig config) {
+	HazelcastRateLimiter(Validator defaultValidator, String groupName, Mono<List<MemberInfo>> members, HazelcastRateLimiter.RateLimiterConfig config) {
 		this(defaultValidator, groupName, members);
 		this.defaultConfig = config;
 	}
@@ -87,7 +90,7 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 				});
 	}
 
-	private HazelcastInstance initCluster(String groupName, List<String> members) {
+	private HazelcastInstance initCluster(String groupName, List<MemberInfo> members) {
 		String instanceIndex = System.getenv("CF_INSTANCE_INDEX");
 		logger.info("Starting new cluster for group {} on instance {}", groupName, instanceIndex);
 
@@ -97,7 +100,7 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 		JoinConfig joinConfig = cfg.getNetworkConfig().getJoin();
 		joinConfig.getMulticastConfig().setEnabled(false);
 		TcpIpConfig tcpIpConfig = joinConfig.getTcpIpConfig().setEnabled(true);
-		members.forEach(tcpIpConfig::addMember);
+		members.forEach(memberInfo -> tcpIpConfig.addMember(memberInfo.getHost()));
 
 		return Hazelcast.newHazelcastInstance(cfg);
 	}
