@@ -19,21 +19,7 @@ import reactor.core.scheduler.Schedulers;
 import org.springframework.cloud.gateway.filter.ratelimit.AbstractRateLimiter;
 import org.springframework.validation.Validator;
 
-public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimiter.RateLimiterConfig> {
-
-	static class RateLimiterConfig {
-
-		private int limit;
-
-		public int getLimit() {
-			return limit;
-		}
-
-		public void setLimit(int limit) {
-			this.limit = limit;
-		}
-
-	}
+public class HazelcastRateLimiter extends AbstractRateLimiter<RateLimiterConfig> {
 
 	private RateLimiterConfig defaultConfig = new RateLimiterConfig();
 
@@ -41,7 +27,7 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 	private final Mono<HazelcastInstance> hazelcastCluster;
 
 	public HazelcastRateLimiter(Validator defaultValidator, String groupName, Mono<List<MemberInfo>> membersSupplier) {
-		super(HazelcastRateLimiter.RateLimiterConfig.class, "hazelcast-rate-limiter", defaultValidator);
+		super(RateLimiterConfig.class, "rate-limiter", defaultValidator);
 
 		ReplayProcessor<HazelcastInstance> processor = ReplayProcessor.create();
 		membersSupplier.publishOn(Schedulers.elastic())
@@ -52,7 +38,7 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 		this.hazelcastCluster = processor.next();
 	}
 
-	HazelcastRateLimiter(Validator defaultValidator, String groupName, Mono<List<MemberInfo>> members, HazelcastRateLimiter.RateLimiterConfig config) {
+	HazelcastRateLimiter(Validator defaultValidator, String groupName, Mono<List<MemberInfo>> members, RateLimiterConfig config) {
 		this(defaultValidator, groupName, members);
 		this.defaultConfig = config;
 	}
@@ -63,10 +49,10 @@ public class HazelcastRateLimiter extends AbstractRateLimiter<HazelcastRateLimit
 		return this.hazelcastCluster
 				.map(instance -> {
 					final TransactionContext context = instance.newTransactionContext();
-					final HazelcastRateLimiter.RateLimiterConfig config = getConfig().getOrDefault(routeId, defaultConfig);
+					final RateLimiterConfig config = getConfig().getOrDefault(routeId, defaultConfig);
 
 					context.beginTransaction();
-					final TransactionalMap<String, Integer> map = context.getMap("rates-limits");
+					final TransactionalMap<String, Integer> map = context.getMap("rate-limits");
 					final Integer cachedValue = map.getForUpdate(id);
 					final Integer noRequests = cachedValue == null ? 1 : cachedValue + 1;
 

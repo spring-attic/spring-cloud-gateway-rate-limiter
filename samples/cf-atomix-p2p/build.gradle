@@ -1,5 +1,5 @@
 apply plugin: 'org.springframework.boot'
 
 dependencies {
-    implementation project(":rate-limiter-hazelcast")
+    implementation project(":rate-limiter-atomix")
 }

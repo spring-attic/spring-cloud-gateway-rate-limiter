@@ -6,7 +6,11 @@ pluginManagement {
 rootProject.name = 'spring-cloud-gateway-rate-limiter'
 
 include(':rate-limiter-hazelcast')
+include(':rate-limiter-atomix')
+include(':rate-limiter-core')
 
 include(":cf-hazelcast-p2p")
 project(":cf-hazelcast-p2p").projectDir = new File('./samples/cf-hazelcast-p2p')
 
+include(":cf-atomix-p2p")
+project(":cf-atomix-p2p").projectDir = new File('./samples/cf-atomix-p2p')

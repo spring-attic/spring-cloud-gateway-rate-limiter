@@ -7,9 +7,9 @@ import reactor.core.publisher.Mono;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.gateway.ratelimiter.AtomixRateLimiter;
 import org.springframework.cloud.gateway.ratelimiter.CloudFoundryInternalHostsDiscovery;
 import org.springframework.cloud.gateway.ratelimiter.ClusterMembersDiscovery;
-import org.springframework.cloud.gateway.ratelimiter.HazelcastRateLimiter;
 import org.springframework.cloud.gateway.ratelimiter.HostnameResolvableAvailabilityChecker;
 import org.springframework.cloud.gateway.ratelimiter.MemberAvailabilityChecker;
 import org.springframework.cloud.gateway.ratelimiter.MemberInfo;
@@ -18,9 +18,6 @@ import org.springframework.validation.Validator;
 
 @SpringBootApplication
 public class DemoApplication {
-
-	@Value("${vcap.application.application_id}")
-	String appId;
 
 	@Bean
 	MemberAvailabilityChecker memberAvailabilityChecker() {
@@ -35,9 +32,10 @@ public class DemoApplication {
 	}
 
 	@Bean
-	public HazelcastRateLimiter rateLimiter(Validator defaultValidator, ClusterMembersDiscovery clusterMembersDiscovery) {
+	public AtomixRateLimiter rateLimiter(Validator defaultValidator, ClusterMembersDiscovery clusterMembersDiscovery) {
 		Mono<List<MemberInfo>> members = clusterMembersDiscovery.discover();
-		return new HazelcastRateLimiter(defaultValidator, appId, members);
+		MemberInfo nodeHost = clusterMembersDiscovery.thisMember().block();
+		return new AtomixRateLimiter(defaultValidator, nodeHost, members);
 	}
 
 	public static void main(String[] args) {

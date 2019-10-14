@@ -13,24 +13,26 @@ public class CloudFoundryInternalHostsDiscovery implements ClusterMembersDiscove
 	private static final Logger logger = LoggerFactory.getLogger(CloudFoundryInternalHostsDiscovery.class);
 	private static final long MAX_RETRIES = 5;
 
-	private final List<String> uris;
+	private final String internalHost;
 	private final int instanceIndex;
 	private final MemberAvailabilityChecker availabilityChecker;
 
 	public CloudFoundryInternalHostsDiscovery(List<String> uris, int instanceIndex, MemberAvailabilityChecker availabilityChecker) {
-		this.uris = uris;
 		this.instanceIndex = instanceIndex;
 		this.availabilityChecker = availabilityChecker;
-	}
-
-	public Mono<List<MemberInfo>> discover() {
-		final String internalHost = uris
+		this.internalHost = uris
 				.stream()
 				.filter(uri -> uri.endsWith(".apps.internal"))
 				.findFirst()
 				.orElseThrow(() ->
 						new IllegalStateException(String.format("No internal route found in %s, add <app-name>.apps.internal route", String.join(", ", uris))));
+	}
 
+	public Mono<MemberInfo> thisMember() {
+		return Mono.just(new MemberInfo(instanceIndex + "." + internalHost));
+	}
+
+	public Mono<List<MemberInfo>> discover() {
 		return Flux.range(0, instanceIndex + 1)
 		           .map(idx -> idx + "." + internalHost)
 		           .map(MemberInfo::new)

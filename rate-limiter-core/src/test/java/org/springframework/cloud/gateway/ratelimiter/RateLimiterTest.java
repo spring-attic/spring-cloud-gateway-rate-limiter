@@ -1,29 +1,30 @@
 package org.springframework.cloud.gateway.ratelimiter;
 
-import java.util.Collections;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import reactor.core.publisher.Mono;
 
 import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter;
+import org.springframework.validation.Validator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class HazelcastRateLimiterTest {
+abstract class RateLimiterTest {
 
-	private RateLimiter<RateLimiterConfig> rateLimiter;
+	abstract RateLimiter<RateLimiterConfig> createRateLimiter(RateLimiterConfig config, Validator validator);
+
+	RateLimiter<RateLimiterConfig> rateLimiter;
 
 	@BeforeAll
 	void setUpRateLimiterTest() {
 		RateLimiterConfig config = new RateLimiterConfig();
 		config.setLimit(1);
 
-		rateLimiter = new HazelcastRateLimiter(new NoOpValidator(), "test-group", Mono.just(Collections.singletonList(new MemberInfo("localhost", 5701))), config);
+		rateLimiter = createRateLimiter(config, new NoOpValidator());
 	}
 
 	@Test

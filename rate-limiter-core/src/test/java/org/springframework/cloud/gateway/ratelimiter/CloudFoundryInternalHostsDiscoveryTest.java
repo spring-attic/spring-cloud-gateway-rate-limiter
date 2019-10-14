@@ -13,10 +13,12 @@ class CloudFoundryInternalHostsDiscoveryTest {
 
 	@Test
 	void shouldThrowAnExceptionWhenNoInternalHostIsProvided() {
-		CloudFoundryInternalHostsDiscovery hostsDiscovery =
-				new CloudFoundryInternalHostsDiscovery(Collections.singletonList("app.cf.apps.example.com"), 1, Mono::just);
+		assertThrows(IllegalStateException.class, () -> {
+			CloudFoundryInternalHostsDiscovery hostsDiscovery =
+					new CloudFoundryInternalHostsDiscovery(Collections.singletonList("app.cf.apps.example.com"), 1, Mono::just);
 
-		assertThrows(IllegalStateException.class, () -> hostsDiscovery.discover().block());
+			hostsDiscovery.discover().block();
+		});
 	}
 
 	@Test

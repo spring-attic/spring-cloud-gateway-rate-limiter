@@ -1,36 +1,6 @@
-plugins {
-    id 'org.springframework.boot' version '2.1.5.RELEASE' apply false
-}
-
-apply plugin: 'java'
-apply plugin: 'io.spring.dependency-management'
-
-sourceCompatibility = '1.8'
-group = 'org.springframework.cloud.gateway'
-
-repositories {
-    mavenCentral()
-}
-
-ext {
-    set('springCloudVersion', "Greenwich.SR1")
-    set('springBootVersion', '2.1.5.RELEASE')
-}
-
-test {
-    useJUnitPlatform()
-}
-
-dependencyManagement {
-    imports {
-        mavenBom "org.springframework.boot:spring-boot-starter-parent:${springBootVersion}"
-        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
-    }
-}
+apply plugin: 'java-library'
 
 dependencies {
-    implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
-    implementation 'com.hazelcast:hazelcast:3.12'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.junit.jupiter:junit-jupiter-api'
+    api project(':rate-limiter-core')
+    api 'com.hazelcast:hazelcast:3.12'
 }
