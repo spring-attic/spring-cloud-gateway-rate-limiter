@@ -34,8 +34,8 @@ public class DemoApplication {
 	@Bean
 	public AtomixRateLimiter rateLimiter(Validator defaultValidator, ClusterMembersDiscovery clusterMembersDiscovery) {
 		Mono<List<MemberInfo>> members = clusterMembersDiscovery.discover();
-		MemberInfo nodeHost = clusterMembersDiscovery.thisMember().block();
-		return new AtomixRateLimiter(defaultValidator, nodeHost, members);
+		Mono<MemberInfo> thisMember = clusterMembersDiscovery.thisMember();
+		return new AtomixRateLimiter(defaultValidator, thisMember, members);
 	}
 
 	public static void main(String[] args) {

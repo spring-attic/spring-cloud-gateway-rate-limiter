@@ -29,49 +29,29 @@ public class AtomixRateLimiter extends AbstractRateLimiter<RateLimiterConfig> {
 	private RateLimiterConfig defaultConfig = new RateLimiterConfig();
 	private Mono<AsyncAtomicCounterMap<String>> atomicMap;
 
-	AtomixRateLimiter(RateLimiterConfig config, Validator validator, MemberInfo currentNode, Mono<List<MemberInfo>> membersSupplier) {
+	AtomixRateLimiter(RateLimiterConfig config, Validator validator, Mono<MemberInfo> currentNode, Mono<List<MemberInfo>> membersSupplier) {
 		this(validator, currentNode, membersSupplier);
 		this.defaultConfig = config;
 	}
 
-	public AtomixRateLimiter(Validator validator, MemberInfo currentNode, Mono<List<MemberInfo>> membersSupplier) {
+	public AtomixRateLimiter(Validator validator, Mono<MemberInfo> currentNode, Mono<List<MemberInfo>> membersSupplier) {
 		super(RateLimiterConfig.class, "rate-limiter", validator);
 
 		ReplayProcessor<AsyncAtomicCounterMap<String>> processor = ReplayProcessor.create();
 		atomicMap = processor.next();
 
 		membersSupplier.map(this::membersToNodes)
-		               .map(nodes -> {
+		               .zipWith(currentNode)
+		               .map(nodesAndCurrent -> {
+			               final List<Node> nodes = nodesAndCurrent.getT1();
+			               final MemberInfo current = nodesAndCurrent.getT2();
+
 			               logger.info("Using nodes {}, this node is {}", nodes, currentNode);
 
-			               final Set<String> allMembers = nodes.stream()
-			                                                   .map(Node::id)
-			                                                   .map(NodeId::toString)
-			                                                   .collect(Collectors.toSet());
-
-			               Atomix atomix = Atomix.builder()
-			                                     .withMemberId(currentNode.getHost())
-			                                     .withAddress(new Address(currentNode.getHost(), ATOMIX_PORT))
-			                                     .withMembershipProvider(BootstrapDiscoveryProvider
-					                                     .builder()
-					                                     .withNodes(nodes)
-					                                     .build())
-			                                     .withManagementGroup(RaftPartitionGroup
-					                                     .builder("system")
-					                                     .withNumPartitions(1)
-					                                     .withMembers(allMembers)
-					                                     .build())
-			                                     .withPartitionGroups(RaftPartitionGroup
-					                                     .builder("raft")
-					                                     .withNumPartitions(1)
-					                                     .withMembers(allMembers)
-					                                     .build())
-			                                     .build();
-
-			               atomix.start().join();
-
-			               return atomix.<String>getAtomicCounterMap("rate-limit").async();
+			               return buildCluster(nodes, current);
 		               })
+		               .doOnNext(atomix -> atomix.start().join())
+		               .map(atomix -> atomix.<String>getAtomicCounterMap("rate-limit").async())
 		               .subscribeOn(Schedulers.elastic())
 		               .doOnNext(processor::onNext)
 		               .subscribe();
@@ -93,6 +73,32 @@ public class AtomixRateLimiter extends AbstractRateLimiter<RateLimiterConfig> {
 						                       return new Response(true, Collections.singletonMap("X-Remaining-Limit", String.valueOf(remainingRequests)));
 					                       }
 				                       }));
+	}
+
+	private Atomix buildCluster(List<Node> nodes, MemberInfo current) {
+		final Set<String> allMembers = nodes.stream()
+		                                    .map(Node::id)
+		                                    .map(NodeId::toString)
+		                                    .collect(Collectors.toSet());
+
+		return Atomix.builder()
+		             .withMemberId(current.getHost())
+		             .withAddress(new Address(current.getHost(), ATOMIX_PORT))
+		             .withMembershipProvider(BootstrapDiscoveryProvider
+				             .builder()
+				             .withNodes(nodes)
+				             .build())
+		             .withManagementGroup(RaftPartitionGroup
+				             .builder("system")
+				             .withNumPartitions(1)
+				             .withMembers(allMembers)
+				             .build())
+		             .withPartitionGroups(RaftPartitionGroup
+				             .builder("raft")
+				             .withNumPartitions(1)
+				             .withMembers(allMembers)
+				             .build())
+		             .build();
 	}
 
 	private List<Node> membersToNodes(List<MemberInfo> members) {

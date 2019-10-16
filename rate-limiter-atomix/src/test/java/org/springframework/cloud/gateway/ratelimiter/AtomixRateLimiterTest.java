@@ -71,7 +71,7 @@ class AtomixRateLimiterTest {
 		RateLimiterConfig config = new RateLimiterConfig();
 		config.setLimit(1);
 
-		rateLimiter = new AtomixRateLimiter(config, new NoOpValidator(), new MemberInfo("localhost", 5679), Mono.just(Collections.singletonList(new MemberInfo("localhost", 5678))));
+		rateLimiter = new AtomixRateLimiter(config, new NoOpValidator(), Mono.just(new MemberInfo("localhost", 5679)), Mono.just(Collections.singletonList(new MemberInfo("localhost", 5678))));
 	}
 
 	@Test
