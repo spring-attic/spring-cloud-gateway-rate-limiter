@@ -1,6 +1,6 @@
 # Summary
 
-This is a PoC of using Hazelcast peer-to-peer cluster to implement Spring Cloud Gateway Rate Limiter for horizontally scaled CF app.
+This is a PoC of using [Atomix](https://atomix.io/) peer-to-peer Raft cluster to implement Spring Cloud Gateway Rate Limiter for horizontally scaled CF app.
 
 # Build and deploy
 
