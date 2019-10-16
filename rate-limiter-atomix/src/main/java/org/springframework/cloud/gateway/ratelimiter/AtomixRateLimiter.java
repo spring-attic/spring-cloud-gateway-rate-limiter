@@ -9,7 +9,7 @@ import io.atomix.cluster.Node;
 import io.atomix.cluster.NodeId;
 import io.atomix.cluster.discovery.BootstrapDiscoveryProvider;
 import io.atomix.core.Atomix;
-import io.atomix.core.counter.AsyncAtomicCounter;
+import io.atomix.core.map.AsyncAtomicCounterMap;
 import io.atomix.protocols.raft.partition.RaftPartitionGroup;
 import io.atomix.utils.net.Address;
 import org.slf4j.Logger;
@@ -27,7 +27,7 @@ public class AtomixRateLimiter extends AbstractRateLimiter<RateLimiterConfig> {
 	private final Logger logger = LoggerFactory.getLogger(AtomixRateLimiter.class);
 
 	private RateLimiterConfig defaultConfig = new RateLimiterConfig();
-	private Mono<Atomix> atomixInstance;
+	private Mono<AsyncAtomicCounterMap<String>> atomicMap;
 
 	AtomixRateLimiter(RateLimiterConfig config, Validator validator, MemberInfo currentNode, Mono<List<MemberInfo>> membersSupplier) {
 		this(validator, currentNode, membersSupplier);
@@ -37,19 +37,12 @@ public class AtomixRateLimiter extends AbstractRateLimiter<RateLimiterConfig> {
 	public AtomixRateLimiter(Validator validator, MemberInfo currentNode, Mono<List<MemberInfo>> membersSupplier) {
 		super(RateLimiterConfig.class, "rate-limiter", validator);
 
-		ReplayProcessor<Atomix> processor = ReplayProcessor.create();
-		atomixInstance = processor.next();
+		ReplayProcessor<AsyncAtomicCounterMap<String>> processor = ReplayProcessor.create();
+		atomicMap = processor.next();
 
-		membersSupplier.map(members -> members.stream()
-		                                      .map(memberInfo -> Node.builder()
-		                                                             .withId(memberInfo.getHost())
-		                                                             .withHost(memberInfo.getHost())
-		                                                             .withPort(ATOMIX_PORT)
-		                                                             .build())
-		                                      .collect(Collectors.toList()))
-		               .publishOn(Schedulers.elastic())
+		membersSupplier.map(this::membersToNodes)
 		               .map(nodes -> {
-			               logger.info("Using nodes {}, this node host {}", nodes, currentNode);
+			               logger.info("Using nodes {}, this node is {}", nodes, currentNode);
 
 			               final Set<String> allMembers = nodes.stream()
 			                                                   .map(Node::id)
@@ -77,8 +70,9 @@ public class AtomixRateLimiter extends AbstractRateLimiter<RateLimiterConfig> {
 
 			               atomix.start().join();
 
-			               return atomix;
+			               return atomix.<String>getAtomicCounterMap("rate-limit").async();
 		               })
+		               .subscribeOn(Schedulers.elastic())
 		               .doOnNext(processor::onNext)
 		               .subscribe();
 	}
@@ -88,19 +82,26 @@ public class AtomixRateLimiter extends AbstractRateLimiter<RateLimiterConfig> {
 		final RateLimiterConfig config = getConfig().getOrDefault(routeId, defaultConfig);
 		final Response notAllowed = new Response(false, Collections.emptyMap());
 
-		return atomixInstance
-				.flatMap(atomix -> {
-					final AsyncAtomicCounter asyncCounter = atomix.getAtomicCounter(id).async();
-					return Mono.fromFuture(asyncCounter.incrementAndGet())
-					           .map(noRequests -> {
-						           if (noRequests > config.getLimit()) {
-							           return notAllowed;
-						           }
-						           else {
-							           final int remainingRequests = (int) (config.getLimit() - noRequests);
-							           return new Response(true, Collections.singletonMap("X-Remaining-Limit", String.valueOf(remainingRequests)));
-						           }
-					           });
-				});
+		return atomicMap
+				.flatMap(atomix -> Mono.fromFuture(atomix.incrementAndGet(id))
+				                       .map(noRequests -> {
+					                       if (noRequests > config.getLimit()) {
+						                       return notAllowed;
+					                       }
+					                       else {
+						                       final int remainingRequests = (int) (config.getLimit() - noRequests);
+						                       return new Response(true, Collections.singletonMap("X-Remaining-Limit", String.valueOf(remainingRequests)));
+					                       }
+				                       }));
+	}
+
+	private List<Node> membersToNodes(List<MemberInfo> members) {
+		return members.stream()
+		              .map(memberInfo -> Node.builder()
+		                                     .withId(memberInfo.getHost())
+		                                     .withHost(memberInfo.getHost())
+		                                     .withPort(ATOMIX_PORT)
+		                                     .build())
+		              .collect(Collectors.toList());
 	}
 }

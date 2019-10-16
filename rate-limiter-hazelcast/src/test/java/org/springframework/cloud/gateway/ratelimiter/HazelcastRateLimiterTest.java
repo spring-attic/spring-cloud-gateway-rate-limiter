@@ -7,7 +7,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import reactor.blockhound.BlockHound;
 import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter;
 
@@ -43,5 +45,16 @@ class HazelcastRateLimiterTest {
 
 		RateLimiter.Response block = rateLimiter.isAllowed(UUID.randomUUID().toString(), apiKey).block();
 		assertThat(block.isAllowed()).isFalse();
+	}
+
+	@Test
+	@DisplayName("should not block threads that do not allow blocking")
+	void shouldNotBlock() {
+		final String apiKey = UUID.randomUUID().toString();
+
+		BlockHound.install();
+		StepVerifier.create(rateLimiter.isAllowed(UUID.randomUUID().toString(), apiKey))
+		            .assertNext(response -> assertThat(response.isAllowed()).isTrue())
+		            .verifyComplete();
 	}
 }
