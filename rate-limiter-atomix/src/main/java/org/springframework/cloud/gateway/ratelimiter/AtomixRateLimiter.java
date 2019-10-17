@@ -1,5 +1,6 @@
 package org.springframework.cloud.gateway.ratelimiter;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -11,6 +12,7 @@ import io.atomix.cluster.discovery.BootstrapDiscoveryProvider;
 import io.atomix.core.Atomix;
 import io.atomix.core.map.AsyncAtomicCounterMap;
 import io.atomix.protocols.raft.partition.RaftPartitionGroup;
+import io.atomix.storage.StorageLevel;
 import io.atomix.utils.net.Address;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,9 +63,10 @@ public class AtomixRateLimiter extends AbstractRateLimiter<RateLimiterConfig> {
 	public Mono<Response> isAllowed(String routeId, String id) {
 		final RateLimiterConfig config = getConfig().getOrDefault(routeId, defaultConfig);
 		final Response notAllowed = new Response(false, Collections.emptyMap());
+		final String key = id + "-" + Instant.now().getEpochSecond();
 
 		return atomicMap
-				.flatMap(atomix -> Mono.fromFuture(atomix.incrementAndGet(id))
+				.flatMap(atomix -> Mono.fromFuture(atomix.incrementAndGet(key))
 				                       .map(noRequests -> {
 					                       if (noRequests > config.getLimit()) {
 						                       return notAllowed;
@@ -92,11 +95,13 @@ public class AtomixRateLimiter extends AbstractRateLimiter<RateLimiterConfig> {
 				             .builder("system")
 				             .withNumPartitions(1)
 				             .withMembers(allMembers)
+				             .withStorageLevel(StorageLevel.MEMORY)
 				             .build())
 		             .withPartitionGroups(RaftPartitionGroup
 				             .builder("raft")
 				             .withNumPartitions(1)
 				             .withMembers(allMembers)
+				             .withStorageLevel(StorageLevel.MEMORY)
 				             .build())
 		             .build();
 	}

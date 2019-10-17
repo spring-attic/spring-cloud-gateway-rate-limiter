@@ -1,6 +1,7 @@
 package org.springframework.cloud.gateway.ratelimiter;
 
 import java.io.File;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.UUID;
 
@@ -87,13 +88,11 @@ class AtomixRateLimiterTest {
 	@Test
 	@DisplayName("should share rate limit with cluster members")
 	void shouldConnectToClusterMembers() {
-		final String apiKey = UUID.randomUUID().toString();
+		final String apiKey = UUID.randomUUID().toString() + "-" + Instant.now().getEpochSecond();
 
 		atomixNode.start().join();
 		AsyncAtomicCounterMap<Object> rateLimit = atomixNode.getAtomicCounterMap("rate-limit").async();
-		rateLimit.incrementAndGet(apiKey);
-		rateLimit.incrementAndGet(apiKey);
-		rateLimit.incrementAndGet(apiKey);
+		rateLimit.put(apiKey, 3);
 
 		RateLimiter.Response response = rateLimiter.isAllowed(UUID.randomUUID().toString(), apiKey).block();
 
