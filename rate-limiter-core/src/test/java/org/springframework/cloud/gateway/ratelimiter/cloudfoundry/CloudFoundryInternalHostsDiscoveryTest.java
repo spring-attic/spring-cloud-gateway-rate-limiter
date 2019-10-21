@@ -1,10 +1,12 @@
-package org.springframework.cloud.gateway.ratelimiter;
+package org.springframework.cloud.gateway.ratelimiter.cloudfoundry;
 
 import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
+
+import org.springframework.cloud.gateway.ratelimiter.cluster.MemberInfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;

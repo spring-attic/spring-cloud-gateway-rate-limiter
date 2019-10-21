@@ -1,9 +1,11 @@
-package org.springframework.cloud.gateway.ratelimiter;
+package org.springframework.cloud.gateway.ratelimiter.cloudfoundry;
 
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
 
 import reactor.core.publisher.Mono;
+
+import org.springframework.cloud.gateway.ratelimiter.cluster.MemberInfo;
 
 public class HostnameResolvableAvailabilityChecker implements MemberAvailabilityChecker {
 

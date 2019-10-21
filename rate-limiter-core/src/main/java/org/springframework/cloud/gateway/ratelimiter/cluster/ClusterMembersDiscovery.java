@@ -1,4 +1,4 @@
-package org.springframework.cloud.gateway.ratelimiter;
+package org.springframework.cloud.gateway.ratelimiter.cluster;
 
 import java.util.List;
 

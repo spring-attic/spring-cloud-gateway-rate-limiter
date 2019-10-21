@@ -2,14 +2,13 @@ spring:
   cloud:
     gateway:
       routes:
-        - uri: https://google.com
-          id: test-route
+        - uri: https://github.com
           predicates:
-            - Path=/google/**
+            - Path=/github/**
           filters:
             - StripPrefix=1
             - name: RequestRateLimiter
               args:
                 rate-limiter: "#{@rateLimiter}"
-                key-resolver: "#{@headerKeyResolver}"
+                key-resolver: "#{@keyResolver}"
                 rate-limiter.limit: 3

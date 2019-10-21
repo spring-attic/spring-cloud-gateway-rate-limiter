@@ -1,4 +1,4 @@
-package org.springframework.cloud.gateway.ratelimiter;
+package org.springframework.cloud.gateway.ratelimiter.cloudfoundry;
 
 import java.time.Duration;
 import java.util.List;
@@ -7,6 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import org.springframework.cloud.gateway.ratelimiter.cluster.ClusterMembersDiscovery;
+import org.springframework.cloud.gateway.ratelimiter.cluster.MemberInfo;
 
 public class CloudFoundryInternalHostsDiscovery implements ClusterMembersDiscovery {
 

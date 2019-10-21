@@ -2,7 +2,7 @@
 applications:
   - name: peer
     path: build/libs/cf-hazelcast-p2p.jar
-    instances: 2
+    instances: 3
     routes:
       - route: peer.apps.internal
       - route: peer.((cf-apps-domain))

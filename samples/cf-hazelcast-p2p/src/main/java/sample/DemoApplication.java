@@ -2,17 +2,16 @@ package sample;
 
 import java.util.List;
 
-import reactor.core.publisher.Mono;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.gateway.ratelimiter.CloudFoundryInternalHostsDiscovery;
-import org.springframework.cloud.gateway.ratelimiter.ClusterMembersDiscovery;
-import org.springframework.cloud.gateway.ratelimiter.HazelcastRateLimiter;
-import org.springframework.cloud.gateway.ratelimiter.HostnameResolvableAvailabilityChecker;
-import org.springframework.cloud.gateway.ratelimiter.MemberAvailabilityChecker;
-import org.springframework.cloud.gateway.ratelimiter.MemberInfo;
+import org.springframework.cloud.gateway.ratelimiter.HazelcastBucket4JRequestCounterFactory;
+import org.springframework.cloud.gateway.ratelimiter.HazelcastClusterInitializer;
+import org.springframework.cloud.gateway.ratelimiter.RequestCounterFactory;
+import org.springframework.cloud.gateway.ratelimiter.cloudfoundry.CloudFoundryInternalHostsDiscovery;
+import org.springframework.cloud.gateway.ratelimiter.cloudfoundry.HostnameResolvableAvailabilityChecker;
+import org.springframework.cloud.gateway.ratelimiter.cluster.ClusterMembersDiscovery;
+import org.springframework.cloud.gateway.ratelimiter.DefaultRateLimiter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.validation.Validator;
 
@@ -23,21 +22,24 @@ public class DemoApplication {
 	String appId;
 
 	@Bean
-	MemberAvailabilityChecker memberAvailabilityChecker() {
-		return new HostnameResolvableAvailabilityChecker();
-	}
-
-	@Bean
 	ClusterMembersDiscovery clusterMembersDiscovery(@Value("${vcap.application.uris}") List<String> uris,
-	                                                @Value("${CF_INSTANCE_INDEX:1}") int instanceIndex,
-	                                                MemberAvailabilityChecker memberAvailabilityChecker) {
-		return new CloudFoundryInternalHostsDiscovery(uris, instanceIndex, memberAvailabilityChecker);
+	                                                @Value("${CF_INSTANCE_INDEX:1}") int instanceIndex) {
+		return new CloudFoundryInternalHostsDiscovery(uris, instanceIndex, new HostnameResolvableAvailabilityChecker());
 	}
 
 	@Bean
-	public HazelcastRateLimiter rateLimiter(Validator defaultValidator, ClusterMembersDiscovery clusterMembersDiscovery) {
-		Mono<List<MemberInfo>> members = clusterMembersDiscovery.discover();
-		return new HazelcastRateLimiter(defaultValidator, appId, members);
+	HazelcastClusterInitializer hazelcastClusterInitializer(ClusterMembersDiscovery clusterMembersDiscovery) {
+		return new HazelcastClusterInitializer(appId, clusterMembersDiscovery.discover());
+	}
+
+	@Bean
+	RequestCounterFactory requestCounterFactory(HazelcastClusterInitializer hazelcastClusterInitializer) {
+		return new HazelcastBucket4JRequestCounterFactory(hazelcastClusterInitializer);
+	}
+
+	@Bean
+	public DefaultRateLimiter rateLimiter(Validator defaultValidator, RequestCounterFactory requestCounterFactory) {
+		return new DefaultRateLimiter(defaultValidator, requestCounterFactory);
 	}
 
 	public static void main(String[] args) {

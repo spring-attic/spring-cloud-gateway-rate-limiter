@@ -3,4 +3,6 @@ apply plugin: 'java-library'
 dependencies {
     api project(':rate-limiter-core')
     api 'com.hazelcast:hazelcast:3.12'
+    implementation 'com.github.vladimir-bukhtoyarov:bucket4j-hazelcast:4.4.1'
+    implementation 'javax.cache:cache-api'
 }

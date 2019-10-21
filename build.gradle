@@ -20,6 +20,9 @@ subprojects {
 
     test {
         useJUnitPlatform()
+        testLogging {
+            showStandardStreams = true
+        }
     }
 
     dependencyManagement {

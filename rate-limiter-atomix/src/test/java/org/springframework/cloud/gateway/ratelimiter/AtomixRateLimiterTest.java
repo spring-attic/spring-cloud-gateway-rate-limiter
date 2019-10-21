@@ -8,7 +8,7 @@ import java.util.UUID;
 import io.atomix.cluster.Node;
 import io.atomix.cluster.discovery.BootstrapDiscoveryProvider;
 import io.atomix.core.Atomix;
-import io.atomix.core.map.AsyncAtomicCounterMap;
+import io.atomix.core.map.AtomicCounterMap;
 import io.atomix.protocols.raft.partition.RaftPartitionGroup;
 import io.atomix.storage.StorageLevel;
 import org.junit.jupiter.api.AfterAll;
@@ -21,6 +21,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter;
+import org.springframework.cloud.gateway.ratelimiter.cluster.MemberInfo;
 import org.springframework.util.FileSystemUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,6 +31,7 @@ class AtomixRateLimiterTest {
 
 	private RateLimiter<RateLimiterConfig> rateLimiter;
 	private Atomix atomixNode;
+	private String routeId;
 
 	@BeforeAll
 	void startTestNode() {
@@ -69,10 +71,16 @@ class AtomixRateLimiterTest {
 
 	@BeforeAll
 	void setUpRateLimiterTest() {
+		routeId = UUID.randomUUID().toString();
+
 		RateLimiterConfig config = new RateLimiterConfig();
 		config.setLimit(1);
 
-		rateLimiter = new AtomixRateLimiter(config, new NoOpValidator(), Mono.just(new MemberInfo("localhost", 5679)), Mono.just(Collections.singletonList(new MemberInfo("localhost", 5678))));
+		AtomixClusterInitializer atomixClusterInitializer = new AtomixClusterInitializer(Mono.just(new MemberInfo("localhost", 5679)), Mono.just(Collections.singletonList(new MemberInfo("localhost", 5678))));
+		AtomixRequestCounterFactory atomixRequestCounterFactory = new AtomixRequestCounterFactory(atomixClusterInitializer);
+
+		rateLimiter = new DefaultRateLimiter(new NoOpValidator(), atomixRequestCounterFactory);
+		rateLimiter.getConfig().put(routeId, config);
 	}
 
 	@Test
@@ -80,7 +88,7 @@ class AtomixRateLimiterTest {
 	void shouldAllowRequestBeforeLimit() {
 		final String apiKey = UUID.randomUUID().toString();
 
-		RateLimiter.Response block = rateLimiter.isAllowed(UUID.randomUUID().toString(), apiKey).block();
+		RateLimiter.Response block = rateLimiter.isAllowed(routeId, apiKey).block();
 		assertThat(block.isAllowed()).isTrue();
 	}
 
@@ -88,13 +96,13 @@ class AtomixRateLimiterTest {
 	@Test
 	@DisplayName("should share rate limit with cluster members")
 	void shouldConnectToClusterMembers() {
-		final String apiKey = UUID.randomUUID().toString() + "-" + Instant.now().getEpochSecond();
+		final String apiKey = UUID.randomUUID().toString();
 
 		atomixNode.start().join();
-		AsyncAtomicCounterMap<Object> rateLimit = atomixNode.getAtomicCounterMap("rate-limit").async();
-		rateLimit.put(apiKey, 3);
+		AtomicCounterMap<String> rateLimit = atomixNode.getAtomicCounterMap(routeId);
+		mockExistingRequests(rateLimit, apiKey);
 
-		RateLimiter.Response response = rateLimiter.isAllowed(UUID.randomUUID().toString(), apiKey).block();
+		RateLimiter.Response response = rateLimiter.isAllowed(routeId, apiKey).block();
 
 		assertThat(response.isAllowed()).isEqualTo(false);
 	}
@@ -103,9 +111,9 @@ class AtomixRateLimiterTest {
 	@DisplayName("should reject request if limit for a key is exceeded")
 	void shouldRejectRequestAfterLimit() {
 		final String apiKey = UUID.randomUUID().toString();
-		rateLimiter.isAllowed("foo", apiKey).block();
+		rateLimiter.isAllowed(routeId, apiKey).block();
 
-		RateLimiter.Response block = rateLimiter.isAllowed(UUID.randomUUID().toString(), apiKey).block();
+		RateLimiter.Response block = rateLimiter.isAllowed(routeId, apiKey).block();
 		assertThat(block.isAllowed()).isFalse();
 	}
 
@@ -115,8 +123,20 @@ class AtomixRateLimiterTest {
 		final String apiKey = UUID.randomUUID().toString();
 
 		BlockHound.install();
-		StepVerifier.create(rateLimiter.isAllowed(UUID.randomUUID().toString(), apiKey))
+		StepVerifier.create(rateLimiter.isAllowed(routeId, apiKey))
 		            .assertNext(response -> assertThat(response.isAllowed()).isTrue())
 		            .verifyComplete();
+	}
+
+	/**
+	 * Put mock data about existing requests for the given apiKey directly to the map. To avoid flakyness, it targets
+	 * not just current second, but -10..+10 seconds in case if test runs longer than a second.
+	 */
+	private void mockExistingRequests(AtomicCounterMap<String> map, String apiKey) {
+		long epochSecond = Instant.now().getEpochSecond();
+		for (long i = epochSecond - 10; i < epochSecond + 10; i++) {
+			final String mapKey = apiKey + "-" + i;
+			map.put(mapKey, 3);
+		}
 	}
 }
