@@ -12,3 +12,4 @@ spring:
                 rate-limiter: "#{@rateLimiter}"
                 key-resolver: "#{@keyResolver}"
                 rate-limiter.limit: 3
+                rate-limiter.duration: 1s

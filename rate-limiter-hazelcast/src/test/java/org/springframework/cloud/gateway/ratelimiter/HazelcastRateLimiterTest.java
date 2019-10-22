@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import reactor.blockhound.BlockHound;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
 import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter;
@@ -63,7 +64,7 @@ class HazelcastRateLimiterTest {
 		final String apiKey = UUID.randomUUID().toString();
 
 		BlockHound.install();
-		StepVerifier.create(rateLimiter.isAllowed(routeId, apiKey))
+		StepVerifier.create(rateLimiter.isAllowed(routeId, apiKey).publishOn(Schedulers.parallel()))
 		            .assertNext(response -> assertThat(response.isAllowed()).isTrue())
 		            .verifyComplete();
 	}

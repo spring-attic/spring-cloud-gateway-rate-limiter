@@ -12,15 +12,15 @@ public class ConsumeResponse {
 		this.retryDelayMs = retryDelayMs;
 	}
 
-	public boolean isAllowed() {
+	boolean isAllowed() {
 		return this.isAllowed;
 	}
 
-	public long remainingRequests() {
+	long remainingRequests() {
 		return this.remainingRequests;
 	}
 
-	public long retryDelayMs() {
+	long retryDelayMs() {
 		return this.retryDelayMs;
 	}
 }

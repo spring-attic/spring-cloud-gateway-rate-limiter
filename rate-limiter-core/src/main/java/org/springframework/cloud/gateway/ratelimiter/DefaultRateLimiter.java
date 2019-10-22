@@ -1,6 +1,5 @@
 package org.springframework.cloud.gateway.ratelimiter;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,7 +24,7 @@ public class DefaultRateLimiter extends AbstractRateLimiter<RateLimiterConfig> {
 	@Override
 	public Mono<Response> isAllowed(String routeId, String id) {
 		final RateLimiterConfig config = getConfig().getOrDefault(routeId, DEFAULT_CONFIG);
-		return requestCounterFactory.create(routeId, id, config.getLimit(), Duration.ofSeconds(1))
+		return requestCounterFactory.create(routeId, id, config.getLimit(), config.getDuration())
 		                            .flatMap(requestCounter -> requestCounter.consume(id))
 		                            .map(this::toResponse);
 	}

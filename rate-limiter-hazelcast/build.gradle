@@ -6,3 +6,17 @@ dependencies {
     implementation 'com.github.vladimir-bukhtoyarov:bucket4j-hazelcast:4.4.1'
     implementation 'javax.cache:cache-api'
 }
+
+test {
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
+}
+
+task integrationTest(type: Test) {
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+    check.dependsOn it
+    shouldRunAfter test
+}
