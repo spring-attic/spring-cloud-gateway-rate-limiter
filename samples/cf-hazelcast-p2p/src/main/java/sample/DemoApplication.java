@@ -7,6 +7,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.gateway.ratelimiter.HazelcastBucket4JRequestCounterFactory;
 import org.springframework.cloud.gateway.ratelimiter.HazelcastClusterInitializer;
+import org.springframework.cloud.gateway.ratelimiter.HeaderKeyResolver;
 import org.springframework.cloud.gateway.ratelimiter.RequestCounterFactory;
 import org.springframework.cloud.gateway.ratelimiter.cloudfoundry.CloudFoundryInternalHostsDiscovery;
 import org.springframework.cloud.gateway.ratelimiter.cloudfoundry.HostnameResolvableAvailabilityChecker;
@@ -40,6 +41,11 @@ public class DemoApplication {
 	@Bean
 	public DefaultRateLimiter rateLimiter(Validator defaultValidator, RequestCounterFactory requestCounterFactory) {
 		return new DefaultRateLimiter(defaultValidator, requestCounterFactory);
+	}
+
+	@Bean
+	public HeaderKeyResolver keyResolver() {
+		return new HeaderKeyResolver("X-API-Key");
 	}
 
 	public static void main(String[] args) {

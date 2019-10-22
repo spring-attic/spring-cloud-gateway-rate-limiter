@@ -11,5 +11,6 @@ spring:
             - name: RequestRateLimiter
               args:
                 rate-limiter: "#{@rateLimiter}"
-                key-resolver: "#{@headerKeyResolver}"
+                key-resolver: "#{@keyResolver}"
                 rate-limiter.limit: 3
+                rate-limiter.duration: 1s

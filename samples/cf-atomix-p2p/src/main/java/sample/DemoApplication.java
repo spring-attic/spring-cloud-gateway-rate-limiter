@@ -11,6 +11,7 @@ import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter;
 import org.springframework.cloud.gateway.ratelimiter.AtomixClusterInitializer;
 import org.springframework.cloud.gateway.ratelimiter.AtomixRequestCounterFactory;
 import org.springframework.cloud.gateway.ratelimiter.DefaultRateLimiter;
+import org.springframework.cloud.gateway.ratelimiter.HeaderKeyResolver;
 import org.springframework.cloud.gateway.ratelimiter.cloudfoundry.CloudFoundryInternalHostsDiscovery;
 import org.springframework.cloud.gateway.ratelimiter.cloudfoundry.HostnameResolvableAvailabilityChecker;
 import org.springframework.cloud.gateway.ratelimiter.cluster.ClusterMembersDiscovery;
@@ -38,6 +39,11 @@ public class DemoApplication {
 	@Bean
 	public RateLimiter rateLimiter(Validator defaultValidator, AtomixClusterInitializer atomixClusterInitializer) {
 		return new DefaultRateLimiter(defaultValidator, new AtomixRequestCounterFactory(atomixClusterInitializer));
+	}
+
+	@Bean
+	public HeaderKeyResolver keyResolver() {
+		return new HeaderKeyResolver("X-API-Key");
 	}
 
 	public static void main(String[] args) {
