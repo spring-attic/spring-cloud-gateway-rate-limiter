@@ -8,7 +8,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import reactor.blockhound.BlockHound;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
@@ -61,11 +60,16 @@ class HazelcastRateLimiterTest {
 	@Test
 	@DisplayName("should not block threads that do not allow blocking")
 	void shouldNotBlock() {
+		BlockHoundHelper.install(true);
 		final String apiKey = UUID.randomUUID().toString();
 
-		BlockHound.install();
-		StepVerifier.create(rateLimiter.isAllowed(routeId, apiKey).publishOn(Schedulers.parallel()))
-		            .assertNext(response -> assertThat(response.isAllowed()).isTrue())
-		            .verifyComplete();
+		try {
+			StepVerifier.create(rateLimiter.isAllowed(routeId, apiKey).publishOn(Schedulers.parallel()))
+			            .assertNext(response -> assertThat(response.isAllowed()).isTrue())
+			            .verifyComplete();
+		}
+		finally {
+			BlockHoundHelper.disable();
+		}
 	}
 }
