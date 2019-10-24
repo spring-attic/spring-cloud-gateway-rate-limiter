@@ -64,7 +64,7 @@ class HazelcastRateLimiterTest {
 		final String apiKey = UUID.randomUUID().toString();
 
 		try {
-			StepVerifier.create(rateLimiter.isAllowed(routeId, apiKey).publishOn(Schedulers.parallel()))
+			StepVerifier.create(rateLimiter.isAllowed(routeId, apiKey).subscribeOn(Schedulers.parallel()))
 			            .assertNext(response -> assertThat(response.isAllowed()).isTrue())
 			            .verifyComplete();
 		}
