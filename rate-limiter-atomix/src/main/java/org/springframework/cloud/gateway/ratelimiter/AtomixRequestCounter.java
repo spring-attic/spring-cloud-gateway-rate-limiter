@@ -17,7 +17,7 @@ public class AtomixRequestCounter implements RequestCounter {
 
 	@Override
 	public Mono<ConsumeResponse> consume(String apiKey) {
-		return Mono.fromFuture(requestCount.incrementAndGet(getKey(apiKey)))
+		return Mono.fromFuture(() -> requestCount.incrementAndGet(getKey(apiKey)))
 		           .map(noRequests -> {
 			           if (noRequests > limit) {
 				           return new ConsumeResponse(false, 0, 0);
